@@ -16,7 +16,7 @@
 #  Потом:   skyrim            (меню)    http://192.168.1.1/skyrim  (панель)
 # ============================================================================
 
-VERSION="1.2.0"
+VERSION="1.2.1"
 REPO="Kochurin/SkyrimVPN-Router"
 RAW_BASES="https://raw.githubusercontent.com/$REPO/main https://cdn.jsdelivr.net/gh/$REPO@main https://kochurin.github.io/SkyrimVPN-Router"
 PW_BASE="https://master.dl.sourceforge.net/project/openwrt-passwall-build"
@@ -148,11 +148,44 @@ check_resources() {
 # Что именно не так с интернетом: net_diag печатает понятную причину.
 #   ok — всё работает; dns — сеть есть, но не работают имена сайтов; down — интернета нет.
 net_state() {
-	if ping -c1 -W3 77.88.8.8 >/dev/null 2>&1 || ping -c1 -W3 1.1.1.1 >/dev/null 2>&1; then
+	# ping бывает закрыт у провайдера — тогда пробуем открыть ya.ru (он идёт мимо VPN)
+	if ping -c1 -W3 77.88.8.8 >/dev/null 2>&1 || ping -c1 -W3 1.1.1.1 >/dev/null 2>&1 \
+		|| curl -s -o /dev/null -m 8 https://ya.ru 2>/dev/null; then
 		nslookup ya.ru >/dev/null 2>&1 || nslookup ya.ru 77.88.8.8 >/dev/null 2>&1 && echo ok || echo dns
 	else
 		echo down
 	fi
+}
+
+# Интернет «напрямую», когда VPN не работает. Запущенный VPN с мёртвым сервером
+# может мешать даже прямым соединениям, поэтому при неудаче проверяем ещё раз
+# с остановленным PassWall. Результат — в $NET (ok|dns|down); PW_HELD=1 значит,
+# что PassWall остановлен здесь и его нужно запустить (или перезапустить) снова.
+net_state_direct() {
+	PW_HELD=0
+	NET=$(net_state)
+	if [ "$NET" != "ok" ] && vpn_running; then
+		/etc/init.d/passwall2 stop >/dev/null 2>&1
+		PW_HELD=1
+		sleep 2
+		NET=$(net_state)
+	fi
+}
+# Остановить VPN на время поиска сервера. Проверке серверов (test.sh) нужны
+# служебные папки PassWall, которые он удаляет при остановке, — создаём их.
+pw_pause() {
+	/etc/init.d/passwall2 stop >/dev/null 2>&1
+	local d; for d in acl bin iface route script_func process_list; do mkdir -p /tmp/etc/passwall2/$d; done
+	mkdir -p /tmp/etc/passwall2_tmp
+}
+pw_resume() { [ "$PW_HELD" = "1" ] && /etc/init.d/passwall2 start >/dev/null 2>&1; PW_HELD=0; }
+
+net_msg() {
+	case "$1" in
+		down) err "У роутера пропал интернет — VPN тут ни при чём. Проверьте кабель провайдера." ;;
+		dns)  err "У роутера не работает DNS провайдера. Перезагрузите роутер." ;;
+		*)    err "Сервер не отвечает. Выберите другой: в панели или skyrim → «Сменить сервер»." ;;
+	esac
 }
 
 # Неверные часы на роутере ломают HTTPS («сертификат ещё не действителен»).
@@ -380,6 +413,8 @@ save_subscription() {
 	# строки-разделители вида «⬇️ Если VLESS не работает ⬇️» — не серверы
 	uci set $CFG.$SUB_ID.filter_keyword_mode="1"
 	uci add_list $CFG.$SUB_ID.filter_discard_list="⬇️"
+	# «АВТО» — группы автовыбора для приложений; на роутере такая ссылка не работает
+	uci add_list $CFG.$SUB_ID.filter_discard_list="АВТО"
 	# обновлять подписку при загрузке и с интервалом, который советует сервер
 	local hours; hours=$(sub_interval "$1")
 	uci set $CFG.$SUB_ID.boot_update="1"
@@ -554,23 +589,27 @@ vpn_restart() {
 }
 
 # Ждём, пока заработает (правила грузятся 10–30 секунд), и проверяем выход в интернет.
+# Почему VPN не работает — понятным языком.
+diagnose() {
+	if ! vpn_running; then
+		err "VPN не запустился. Журнал: tail -30 /tmp/log/passwall2.log — пришлите его в поддержку."
+	else
+		net_state_direct; pw_resume
+		net_msg "$NET"
+	fi
+}
+
+# verify [quiet] — работает ли VPN; quiet — без объяснения причины при неудаче
 verify() {
-	local i=0 code
-	while [ $i -lt 20 ]; do
+	local i=0 code tries=20
+	[ "$1" = "quiet" ] && tries=10      # ~1,5 минуты: дальше сразу ищем другой сервер
+	while [ $i -lt $tries ]; do
 		code=$(curl -s -o /dev/null -m 6 -w "%{http_code}" https://www.youtube.com/generate_204 2>/dev/null)
 		[ "$code" = "204" ] && break
 		sleep 3; i=$((i + 1))
 	done
 	if [ "$code" != "204" ]; then
-		if ! vpn_running; then
-			err "VPN не запустился. Журнал: tail -30 /tmp/log/passwall2.log — пришлите его в поддержку."
-		else
-			case "$(net_state)" in
-				down) err "У роутера пропал интернет — VPN тут ни при чём. Проверьте кабель провайдера." ;;
-				dns)  err "У роутера не работает DNS провайдера. Перезагрузите роутер." ;;
-				*)    err "Сервер не отвечает. Выберите другой: в панели или skyrim → «Сменить сервер»." ;;
-			esac
-		fi
+		[ "$1" = "quiet" ] || diagnose
 		return 1
 	fi
 	local ip country
@@ -655,7 +694,8 @@ do_watchdog() {
 	fi
 	vpn_ok && { rm -f "$WD_FAIL"; return 0; }
 
-	case "$(net_state)" in
+	net_state_direct; pw_resume
+	case "$NET" in
 		down) [ -f "$WD_FAIL.net" ] || event info "Нет интернета у провайдера — VPN ни при чём, жду."; touch "$WD_FAIL.net"; return 0 ;;
 		dns)  [ -f "$WD_FAIL.net" ] || event info "У провайдера не работает DNS — жду."; touch "$WD_FAIL.net"; return 0 ;;
 	esac
@@ -674,12 +714,14 @@ do_watchdog() {
 	fi
 	mkdir "$LOCK" 2>/dev/null || return 0
 	echo "Сторож ищет рабочий сервер…" >"$LOCK/label"; echo $$ >"$LOCK/pid"
+	pw_pause                                                     # мёртвый сервер не мешает проверкам
 	best=$(auto_pick "$cur" 2>/dev/null)
 	if [ -n "$best" ]; then
 		setup_routing "$best"
 		/etc/init.d/passwall2 restart >/dev/null 2>&1
 		event ok "Сервер «$name» не отвечал — переключил на «$(node_name "$best")»."
 	else
+		/etc/init.d/passwall2 start >/dev/null 2>&1
 		event err "Сервер «$name» не отвечает, и другие тоже. Возможно, закончилась подписка."
 	fi
 	rm -rf "$LOCK"
@@ -762,9 +804,39 @@ do_install() {
 	choose_server || exit 1
 	setup_routing "$SERVER"
 	vpn_restart
+	if verify_or_fallback; then
+		event ok "SkyrimVPN установлен, сервер «$(node_name "$SERVER")»."
+		finish_text
+	else
+		event warn "SkyrimVPN установлен, но подключение не проходит."
+		printf "\n${Y}SkyrimVPN установлен, но VPN пока не работает${N} — причина написана выше.\n"
+		printf "  • Сменить сервер: панель ${W}http://%s/skyrim${N} или команда ${W}skyrim${N} → 1\n" "$(lan_ip)"
+		printf "  • «Сторож» тоже будет пробовать другие серверы каждые 3 минуты.\n"
+		printf "  • Не помогло — команда ${W}skyrim report${N}, отчёт пришлите в %s\n\n" "$SUPPORT"
+		exit 1
+	fi
+}
+
+# Проверяем выбранный сервер; если он не отвечает, а интернет у роутера есть —
+# сами подбираем рабочий (кроме него) и проверяем ещё раз.
+verify_or_fallback() {
+	verify quiet && return 0
+	vpn_running || { diagnose; return 1; }
+	net_state_direct
+	[ "$NET" = "ok" ] || { pw_resume; net_msg "$NET"; return 1; }
+	warn "Сервер «$(node_name "$SERVER")» не отвечает — подбираю рабочий автоматически."
+	# пока ищем, мёртвый сервер не должен мешать проверкам
+	pw_pause; PW_HELD=0
+	local best; best=$(auto_pick "$SERVER")
+	if [ -z "$best" ]; then
+		/etc/init.d/passwall2 start >/dev/null 2>&1
+		err "Ни один сервер не ответил. Попробуйте позже или напишите в поддержку."; return 1
+	fi
+	SERVER=$best
+	ok "Выбран сервер: $(node_name "$SERVER")"
+	setup_routing "$SERVER"
+	vpn_restart
 	verify
-	event ok "SkyrimVPN установлен, сервер «$(node_name "$SERVER")»."
-	finish_text
 }
 
 lan_ip() { local ip; ip=$(uci -q get network.lan.ipaddr | cut -d/ -f1); echo "${ip:-192.168.1.1}"; }
@@ -785,7 +857,7 @@ do_change_server() {
 	choose_server || return
 	setup_routing "$SERVER"
 	vpn_restart
-	verify
+	verify_or_fallback
 }
 
 do_update_sub() {

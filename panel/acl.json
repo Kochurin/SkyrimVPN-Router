@@ -1,0 +1,15 @@
+{
+	"luci-app-skyrimvpn": {
+		"description": "SkyrimVPN: управление VPN",
+		"read": {
+			"ubus": {
+				"skyrimvpn": [ "status", "servers", "ip", "report", "events" ]
+			}
+		},
+		"write": {
+			"ubus": {
+				"skyrimvpn": [ "test", "set_server", "toggle", "update_sub", "set_sub", "auto", "settings" ]
+			}
+		}
+	}
+}

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SkyrimVPN</title>
+<meta name="description" content="SkyrimVPN — VPN для всей домашней сети">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="SkyrimVPN">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root {
+	--bg: #000; --card: #0b0b0b; --card2: #111; --line: #1f1f1f; --line2: #2c2c2c;
+	--text: #f4f4f4; --muted: #8f8f8f; --dim: #5e5e5e; --danger: #ff5a5a;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body {
+	font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	-webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
+	min-height: 100vh; padding: env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom));
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; }
+.wrap { max-width: 1040px; margin: 0 auto; }
+.hidden { display: none !important; }
+
+/* шапка */
+.head { display: flex; align-items: center; gap: 14px; padding: 22px 0 22px; }
+.head img { height: 46px; }
+.brand { font-weight: 300; font-size: 26px; letter-spacing: .16em; line-height: 1.1; }
+.sub { color: var(--muted); font-size: 13px; }
+.head .links { margin-left: auto; display: flex; gap: 8px; }
+
+/* кнопки */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 18px;
+	border-radius: 999px; border: 1px solid var(--line2); background: transparent; color: var(--text);
+	font-size: 14px; cursor: pointer; transition: background .15s, border-color .15s, opacity .15s; white-space: nowrap; }
+.btn:hover { border-color: #fff; }
+.btn.solid { background: #fff; color: #000; border-color: #fff; font-weight: 600; }
+.btn.solid:hover { background: #dcdcdc; }
+.btn.small { height: 32px; padding: 0 13px; font-size: 13px; }
+.btn.icon { width: 40px; padding: 0; }
+.btn[disabled] { opacity: .35; pointer-events: none; }
+.btn svg { width: 17px; height: 17px; }
+
+/* карточки */
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 24px; margin-bottom: 16px; }
+.card h3 { margin: 0 0 16px; font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+
+/* статус */
+.hero { display: grid; grid-template-columns: 260px 1fr; gap: 28px; align-items: center; }
+.power { width: 176px; height: 176px; margin: 0 auto; border-radius: 50%; border: 2px solid var(--line2);
+	background: radial-gradient(circle at 50% 40%, #151515, #050505 70%); display: grid; place-items: center;
+	cursor: pointer; position: relative; transition: border-color .3s, box-shadow .3s, color .3s; color: var(--dim); }
+.power svg { width: 64px; height: 64px; }
+.power:hover { border-color: #666; }
+.power.on { border-color: #fff; color: #fff; box-shadow: 0 0 0 8px rgba(255,255,255,.04), 0 0 60px rgba(255,255,255,.18); }
+.power.warn { border-color: var(--danger); color: var(--danger); }
+.power.busy { cursor: progress; }
+.power.busy::after { content: ""; position: absolute; inset: -8px; border-radius: 50%;
+	border: 2px solid transparent; border-top-color: #fff; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.state { text-align: center; margin-top: 16px; font-size: 20px; font-weight: 600; }
+.state small { display: block; font-size: 13px; font-weight: 400; color: var(--muted); margin-top: 2px; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.row:last-child { border-bottom: 0; }
+.row > span:first-child { color: var(--muted); }
+.row > span:last-child { text-align: right; font-weight: 500; }
+.cc { display: inline-block; min-width: 28px; padding: 1px 6px; margin-right: 8px; border: 1px solid var(--line2);
+	border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-align: center; color: #ddd; vertical-align: 1px; }
+
+/* подписка */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.big { font-size: 30px; font-weight: 300; }
+.big small { font-size: 14px; color: var(--muted); margin-left: 6px; }
+.bar { height: 4px; background: var(--line); border-radius: 4px; margin: 14px 0 18px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: #fff; border-radius: 4px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.inputrow { display: flex; gap: 8px; margin-top: 12px; }
+.input { flex: 1; min-width: 0; height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line2);
+	background: #000; color: var(--text); font-size: 15px; outline: none; }
+.input:focus { border-color: #fff; }
+.note { color: var(--muted); font-size: 13px; margin-top: 12px; }
+
+/* баннер */
+.banner { position: relative; overflow: hidden; border-radius: 20px; border: 1px solid var(--line2); margin-bottom: 16px;
+	padding: 30px 32px; min-height: 210px; background: linear-gradient(110deg, #000 35%, #151515 100%); }
+.banner img { position: absolute; right: 26px; top: 50%; transform: translateY(-50%); height: 220px; opacity: .9; pointer-events: none; }
+.eyebrow { font-size: 12px; letter-spacing: .3em; color: var(--muted); text-transform: uppercase; }
+.banner h2 { margin: 8px 0; font-size: 28px; font-weight: 600; line-height: 1.15; max-width: 560px; }
+.banner p { margin: 0 0 18px; color: #bdbdbd; max-width: 520px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+.tags span { font-size: 12px; padding: 4px 10px; border: 1px solid var(--line2); border-radius: 999px; color: #cfcfcf; }
+
+/* серверы */
+.srvhead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.srvhead h3 { margin: 0 auto 0 0; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.chip { height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line2); background: transparent;
+	color: var(--muted); font-size: 13px; cursor: pointer; }
+.chip.on { background: #fff; color: #000; border-color: #fff; }
+.list { display: grid; gap: 6px; }
+.srv { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line);
+	background: var(--card2); cursor: pointer; transition: border-color .15s; min-height: 50px; }
+.srv:hover { border-color: #555; }
+.srv.cur { border-color: #fff; background: #161616; cursor: default; }
+.srv .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag { font-size: 11px; letter-spacing: .04em; color: var(--muted); border: 1px solid var(--line2); border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
+.tag.gem { color: #fff; border-color: #555; }
+.ms { width: 78px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.ms.good { color: #fff; }
+.ms.bad { color: var(--danger); }
+.badge { font-size: 11px; font-weight: 700; background: #fff; color: #000; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+
+/* сторож: переключатели и события */
+.sw { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.swtxt { flex: 1; font-weight: 500; }
+.swtxt small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
+.sw input { position: absolute; opacity: 0; pointer-events: none; }
+.swbox { width: 46px; height: 26px; border-radius: 999px; background: #262626; position: relative; flex: none; transition: background .2s; }
+.swbox::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #777; transition: transform .2s, background .2s; }
+.sw input:checked + .swbox { background: #fff; }
+.sw input:checked + .swbox::after { transform: translateX(20px); background: #000; }
+.sw input:focus-visible + .swbox { outline: 2px solid #fff; outline-offset: 2px; }
+.events { margin-top: 14px; display: grid; gap: 2px; }
+.ev { display: flex; gap: 12px; font-size: 13px; padding: 7px 0; color: #cfcfcf; }
+.ev .t { color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ev.ok::before, .ev.warn::before, .ev.err::before, .ev.info::before { content: ""; width: 6px; height: 6px; border-radius: 50%; margin-top: 7px; flex: none; background: #555; }
+.ev.ok::before { background: #fff; }
+.ev.warn::before, .ev.err::before { background: var(--danger); }
+
+/* подвал, уведомления, вход */
+.foot { display: flex; flex-wrap: wrap; gap: 8px 18px; justify-content: center; color: var(--dim); font-size: 13px; padding: 12px 0 4px; }
+.foot a:hover, .foot button:hover { color: #fff; }
+.foot button { background: none; border: 0; color: inherit; cursor: pointer; padding: 0; font-size: 13px; }
+.toast { position: fixed; left: 50%; bottom: calc(26px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: #fff; color: #000;
+	padding: 12px 20px; border-radius: 16px; font-weight: 600; font-size: 14px; z-index: 50; max-width: calc(100% - 32px);
+	box-shadow: 0 10px 40px rgba(0,0,0,.6); text-align: center; }
+.toast.err { background: var(--danger); color: #fff; }
+.login { min-height: 92vh; display: grid; place-items: center; }
+.login .box { width: 100%; max-width: 360px; text-align: center; }
+.login img { height: 150px; margin-bottom: 18px; }
+.login .brand { margin-bottom: 6px; }
+.login form { margin-top: 26px; display: grid; gap: 10px; }
+.login .btn { height: 46px; font-size: 15px; }
+.login .err { color: var(--danger); font-size: 14px; min-height: 20px; }
+.login .hint { color: var(--dim); font-size: 13px; margin-top: 18px; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.8); display: grid; place-items: center; z-index: 40; padding: 16px; }
+.modal .card { width: 100%; max-width: 640px; margin: 0; }
+.modal textarea { width: 100%; height: 260px; background: #000; color: #ddd; border: 1px solid var(--line2); border-radius: 12px;
+	padding: 12px; font: 12px/1.4 ui-monospace, Consolas, monospace; resize: vertical; }
+.skeleton { color: var(--dim); text-align: center; padding: 80px 0; }
+
+@media (max-width: 760px) {
+	.hero, .grid2 { grid-template-columns: 1fr; }
+	.head { padding: 16px 0; }
+	.head .links .btn:not(.icon) { display: none; }
+	.card, .banner { padding: 20px; border-radius: 18px; }
+	.banner img { height: 120px; right: -12px; top: 16px; transform: none; opacity: .3; }
+	.banner h2 { font-size: 23px; }
+	.srv .tag:not(.gem) { display: none; }
+	.big { font-size: 26px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="skeleton">Загрузка…</div></div>
+<noscript><p style="text-align:center">Для панели SkyrimVPN нужен JavaScript.</p></noscript>
+<script src="app.js"></script>
+</body>
+</html>

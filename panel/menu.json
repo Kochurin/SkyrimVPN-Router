@@ -1,0 +1,13 @@
+{
+	"admin/skyrimvpn": {
+		"title": "SkyrimVPN",
+		"order": 5,
+		"action": {
+			"type": "view",
+			"path": "skyrimvpn"
+		},
+		"depends": {
+			"acl": [ "luci-app-skyrimvpn" ]
+		}
+	}
+}

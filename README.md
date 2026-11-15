@@ -169,7 +169,7 @@ ssh root@192.168.1.1
 **Шаг 3. Вставьте команду установки** (правой кнопкой мыши в окне) и нажмите Enter:
 
 ```bash
-sh <(wget -qO- kochurin.github.io/SkyrimVPN-Router/i)
+sh <(wget -qO- https://kochurin.github.io/SkyrimVPN-Router/i)
 ```
 
 <details>

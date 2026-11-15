@@ -1,6 +1,6 @@
 #!/bin/sh
 # SkyrimVPN Router — короткая команда установки:
-#   sh <(wget -qO- kochurin.github.io/SkyrimVPN-Router/i)
+#   sh <(wget -qO- https://kochurin.github.io/SkyrimVPN-Router/i)
 # Скачивает установщик с первого доступного зеркала и запускает его.
 
 R="Kochurin/SkyrimVPN-Router"

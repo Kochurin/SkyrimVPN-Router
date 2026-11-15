@@ -12,7 +12,7 @@
 #
 #    6. «Сторож» каждые 3 минуты проверяет VPN и сам меняет упавший сервер.
 #
-#  Запуск:  sh <(wget -qO- kochurin.github.io/SkyrimVPN-Router/i)
+#  Запуск:  sh <(wget -qO- https://kochurin.github.io/SkyrimVPN-Router/i)
 #  Потом:   skyrim            (меню)    http://192.168.1.1/skyrim  (панель)
 # ============================================================================
 
